@@ -1,38 +1,43 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, Res } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { AuthUserDto } from './dto/auth-user.dto';
+import { Response } from 'express';
 
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Post()
-  create(@Body() createUserDto: CreateUserDto) {
-    return this.usersService.create(createUserDto);
+  async create(@Body() createUserDto: CreateUserDto, @Res() res: Response) {
+    const response = await this.usersService.create(createUserDto);
+    return res.status(response.status).json({ response });
   }
 
   @Post('auth')
-  auth(@Body() authUserDto: AuthUserDto){
-    const user = this.usersService.auth(authUserDto)
-    return user;
+  async auth(@Body() authUserDto: AuthUserDto, @Res() res: Response){
+    const response = await this.usersService.auth(authUserDto)
+    return res.status(response.status).json({ response });
   }
   
 
   @Get()
-  findAll() {
-    return this.usersService.findAll();
+  async findAll(@Res() res: Response) {
+    const response = await this.usersService.findAll();
+    return res.status(response.status).json({ response });
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.usersService.findOne(id);
+  async findOne(@Param('id') id: string, @Res() res: Response) {
+    const response = await this.usersService.findOne(id);
+    return res.status(response.status).json({ response });
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    return this.usersService.update(id, updateUserDto);
+  async update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto, @Res() res: Response) {
+    const response = await this.usersService.update(id, updateUserDto);
+    return res.status(response.status).json({ response });
   }
 
   @Delete(':id')

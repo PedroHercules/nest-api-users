@@ -12,56 +12,99 @@ export class UsersService {
 
   constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) {}
 
-  async create(createUserDto: CreateUserDto) {
-    createUserDto.password = await bcrypt.hash(createUserDto.password, 10);
-    const user = new this.userModel(createUserDto);
+  async create({ username, email, password }: CreateUserDto) {
+    if ( !username || !email || !password ) {
+      return { status: 400, error: "É necessário ter todos os dados de requisição" }
+    }
+
+    const userExists = await this.userModel.findOne( 
+      { 
+        $or: [ 
+          {username: username},
+          {email: email} 
+        ]
+      });
+
+    if (userExists.username === username){
+      return { status: 400, error: "Este nome de usuário já existe" }
+    }
+    if (userExists.email === email){
+      return { status: 400, error: "Este e-mail já existe" }
+    }  
+
+    password = await bcrypt.hash(password, 10);
+    const user = new this.userModel({ username, email, password });
     await user.save();
     user.password = undefined;
-    return { user }
+    return { status: 201, user }
   }
 
   async auth({ username, password }: AuthUserDto) {
     const user = await this.userModel.findOne( { username: username } );
 
     if (!user) {
-      return {error: "Usuário não existe"};
+      return {status: 404, error: "Usuário não existe"};
     }
     
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) { 
-      return { error: "Senha incorreta" }
+      return { status: 400, error: "Senha incorreta" }
     }
-
     user.password = undefined;
 
-    return { user };
+    return { status: 200, user };
   }
 
-  findAll() {
-    return this.userModel.find();
+  async findAll() {
+    const users = await this.userModel.find().select('-password');
+    if (!users){
+      return { status: 404, error: 'Não há usuários no banco de dados' }
+    }
+
+    return { status: 200, users }
   }
 
-  findOne(id: string) {
-    return this.userModel.findById(id);
+  async findOne(id: string) {
+    const user = await this.userModel.findById(id).select('-password');
+
+    if(!user){
+      return { status: 404, error: "Usuário não existe" }
+    }
+
+    return { status: 200, user };
   }
 
-  update(id: string, updateUserDto: UpdateUserDto) {
-    return this.userModel.findByIdAndUpdate(
-      {
-        _id: id
-      },
-      {
-        $set: updateUserDto
-      },
-      {
-        new: true
-      }
-    );
+  async update(id: string, { username, email }: UpdateUserDto) {
+    const user = await this.userModel.findById(id).select('-password');
+    if (!user) {
+      return { status: 404, error: 'Usuário não existe' }
+    }
+
+    if (username){
+      user.username = username;
+    }
+    if (email){
+      user.email = email;
+    }
+
+    await user.save();
+
+    return { status: 201, user }
   }
 
-  remove(id: string) {
-    return this.userModel.deleteOne({
+  async remove(id: string) {
+    const user = await this.userModel.findById(id).select('-password');
+    if (!user){
+      return { status: 404, error: "Usuário não existe" }
+    }
+    const userDeleted = await this.userModel.deleteOne({
       _id: id
     }).exec();
+
+    if (userDeleted.deletedCount === 0){
+      return { status: 400, error: "Usuário não foi deletado" }
+    }
+
+    return { status: 200, user }
   }
 }
